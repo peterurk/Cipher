@@ -1,6 +1,6 @@
 <?php
 /**
- * Cypher Class
+ * Cipher Class
  *
  * @author Peter Post <peter@itechnics.nl>
  */
@@ -28,14 +28,11 @@ class Cipher
      */
     public function __construct($personalKey = false)
     {
-    	// $config = configuration::getInstance();
     	if (false === $personalKey) {
     		throw new Exception("A personal key is required for encryption/decryption", 1);
-    	} else {
-    		$key = $personalKey;
     	}
 
-        $this->encryptionKey = hash('sha256', $key, true);
+        $this->encryptionKey = hash('sha256', $personalKey, true);
 	    $size = mcrypt_get_iv_size(MCRYPT_CAST_256, MCRYPT_MODE_CFB);
 	    $this->initVector = mcrypt_create_iv($size, MCRYPT_DEV_RANDOM);
     }
