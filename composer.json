@@ -1,5 +1,5 @@
 {
-    "name": "peterurk/Cipher",
+    "name": "peterurk/cipher",
     "type": "library",
     "description": "Cipher, an easy method to encrypt and decrypt",
     "keywords": ["cipher","encryption","decryption"],
