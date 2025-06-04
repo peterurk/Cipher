@@ -4,7 +4,10 @@ declare(strict_types=1);
 namespace peterurk\Cipher;
 
 use InvalidArgumentException;
-use RuntimeException;
+
+use peterurk\Cipher\Exception\CipherException;
+use peterurk\Cipher\Exception\InvalidCipherMethodException;
+use peterurk\Cipher\Exception\HmacVerificationException;
 
 /**
  * Cipher Class
@@ -13,6 +16,10 @@ use RuntimeException;
  */
 final class Cipher implements CipherInterface
 {
+    public const DEFAULT_METHOD = 'AES-256-CBC';
+    public const DEFAULT_SALT = 'cipher_salt';
+    public const DEFAULT_TAG_LENGTH = 16;
+    public const HMAC_LENGTH = 32;
 
     /**
      * SHA256 Encrypted key
@@ -35,11 +42,18 @@ final class Cipher implements CipherInterface
             throw new InvalidArgumentException('A personal key is required for encryption/decryption');
         }
 
-        $this->encryptionKey = hash('sha256', $personalKey, true);
+        $salt = getenv('CIPHER_SALT') ?: self::DEFAULT_SALT;
+        $this->encryptionKey = sodium_crypto_pwhash(
+            32,
+            $personalKey,
+            $salt,
+            SODIUM_CRYPTO_PWHASH_OPSLIMIT_MODERATE,
+            SODIUM_CRYPTO_PWHASH_MEMLIMIT_MODERATE
+        );
 
-        $this->method = $method ?? getenv('CIPHER_METHOD') ?: 'AES-256-CBC';
+        $this->method = $method ?? getenv('CIPHER_METHOD') ?: self::DEFAULT_METHOD;
         if (!in_array($this->method, openssl_get_cipher_methods(), true)) {
-            throw new InvalidArgumentException('Unsupported cipher method');
+            throw new InvalidCipherMethodException('Unsupported cipher method');
         }
 
         $this->useHmac = $useHmac;
@@ -54,11 +68,11 @@ final class Cipher implements CipherInterface
     public function encrypt(string $input): string
     {
         $ivLength = openssl_cipher_iv_length($this->method);
-        $iv = openssl_random_pseudo_bytes($ivLength);
+        $iv = random_bytes($ivLength);
         if ($this->method === 'AES-256-GCM') {
             $cipher = openssl_encrypt($input, $this->method, $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
             if ($cipher === false) {
-                throw new RuntimeException('Encryption failed');
+                throw new CipherException('Encryption failed');
             }
             return base64_encode($iv . $tag . $cipher);
         }
@@ -66,7 +80,7 @@ final class Cipher implements CipherInterface
         $cipher = openssl_encrypt($input, $this->method, $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
 
         if ($cipher === false) {
-            throw new RuntimeException('Encryption failed');
+            throw new CipherException('Encryption failed');
         }
 
         if ($this->useHmac) {
@@ -94,20 +108,20 @@ final class Cipher implements CipherInterface
         $iv = substr($raw, 0, $ivLength);
         $offset = $ivLength;
         if ($this->method === 'AES-256-GCM') {
-            $tagLength = 16;
+            $tagLength = self::DEFAULT_TAG_LENGTH;
             $tag = substr($raw, $offset, $tagLength);
             $offset += $tagLength;
             $ciphertext = substr($raw, $offset);
             $plain = openssl_decrypt($ciphertext, $this->method, $this->encryptionKey, OPENSSL_RAW_DATA, $iv, $tag);
         } else {
             if ($this->useHmac) {
-                $hmacLength = 32;
+                $hmacLength = self::HMAC_LENGTH;
                 $hmac = substr($raw, $offset, $hmacLength);
                 $offset += $hmacLength;
                 $ciphertext = substr($raw, $offset);
                 $calculated = hash_hmac('sha256', $iv . $ciphertext, $this->encryptionKey, true);
                 if (!hash_equals($hmac, $calculated)) {
-                    throw new RuntimeException('HMAC verification failed');
+                    throw new HmacVerificationException('HMAC verification failed');
                 }
             } else {
                 $ciphertext = substr($raw, $offset);
@@ -116,7 +130,7 @@ final class Cipher implements CipherInterface
         }
 
         if ($plain === false) {
-            throw new RuntimeException('Decryption failed');
+            throw new CipherException('Decryption failed');
         }
 
         return $plain;
@@ -124,26 +138,71 @@ final class Cipher implements CipherInterface
 
     public function encryptFile(string $inputPath, string $outputPath): void
     {
-        $data = file_get_contents($inputPath);
-        if ($data === false) {
-            throw new RuntimeException('Unable to read input file');
+        $in = fopen($inputPath, 'rb');
+        if ($in === false) {
+            throw new CipherException('Unable to read input file');
         }
-        $encrypted = $this->encrypt($data);
-        if (file_put_contents($outputPath, $encrypted) === false) {
-            throw new RuntimeException('Unable to write output file');
+        $out = fopen($outputPath, 'wb');
+        if ($out === false) {
+            fclose($in);
+            throw new CipherException('Unable to write output file');
         }
+
+        while (!feof($in)) {
+            $chunk = fread($in, 1048576);
+            if ($chunk === false) {
+                fclose($in);
+                fclose($out);
+                throw new CipherException('Unable to read input file');
+            }
+            if ($chunk === '') {
+                continue;
+            }
+            $encrypted = $this->encrypt($chunk);
+            if (fwrite($out, $encrypted . PHP_EOL) === false) {
+                fclose($in);
+                fclose($out);
+                throw new CipherException('Unable to write output file');
+            }
+        }
+
+        fclose($in);
+        fclose($out);
     }
 
     public function decryptFile(string $inputPath, string $outputPath): void
     {
-        $data = file_get_contents($inputPath);
-        if ($data === false) {
-            throw new RuntimeException('Unable to read input file');
+        $in = fopen($inputPath, 'rb');
+        if ($in === false) {
+            throw new CipherException('Unable to read input file');
         }
-        $plain = $this->decrypt($data);
-        if (file_put_contents($outputPath, $plain) === false) {
-            throw new RuntimeException('Unable to write output file');
+        $out = fopen($outputPath, 'wb');
+        if ($out === false) {
+            fclose($in);
+            throw new CipherException('Unable to write output file');
         }
+
+        while (($line = fgets($in)) !== false) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $plain = $this->decrypt($line);
+            if (fwrite($out, $plain) === false) {
+                fclose($in);
+                fclose($out);
+                throw new CipherException('Unable to write output file');
+            }
+        }
+
+        if (!feof($in)) {
+            fclose($in);
+            fclose($out);
+            throw new CipherException('Unable to read input file');
+        }
+
+        fclose($in);
+        fclose($out);
     }
 }
 

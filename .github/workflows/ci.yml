@@ -15,4 +15,5 @@ jobs:
           php_extensions: mbstring
       - run: composer install --prefer-dist --no-progress
       - run: composer test
+      - run: composer phpstan
 
