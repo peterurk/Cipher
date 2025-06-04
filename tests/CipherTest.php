@@ -15,6 +15,20 @@ final class CipherTest extends TestCase
         $this->assertSame('hello', $cipher->decrypt($encrypted));
     }
 
+    public function testEncryptAndDecryptGcm(): void
+    {
+        $cipher = new Cipher('secret', 'AES-256-GCM');
+        $encrypted = $cipher->encrypt('gcm');
+        $this->assertSame('gcm', $cipher->decrypt($encrypted));
+    }
+
+    public function testEncryptAndDecryptWithHmac(): void
+    {
+        $cipher = new Cipher('secret', 'AES-256-CBC', true);
+        $encrypted = $cipher->encrypt('hmac');
+        $this->assertSame('hmac', $cipher->decrypt($encrypted));
+    }
+
     public function testInvalidKey(): void
     {
         $this->expectException(InvalidArgumentException::class);

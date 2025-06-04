@@ -27,6 +27,7 @@
             "peterurk\\Cipher\\Tests\\": "tests/"
         }
     },
+    "bin": ["bin/cipher"],
     "scripts": {
         "test": "phpunit"
     },
