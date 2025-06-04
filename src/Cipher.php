@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace peterurk\Cipher;
 
@@ -14,49 +15,67 @@ class Cipher
 	 * SHA256 Encrypted Key
 	 * @var string
 	 */
-    private $encryptedKey;
-
-    /**
-     * Initial vector
-     *
-     * Used to seed the encryption string
-     *
-     * @var string
-     */
-    private $initVector;
+    private string $encryptionKey;
 
     /**
      * Constructor
-     * @param boolean|string $personalKey Holds the personal key to use in encryption
+     *
+     * @param string $personalKey Holds the personal key to use in encryption
+     *
+     * @throws Exception When the provided key is empty
      */
-    public function __construct($personalKey = false)
+    public function __construct(string $personalKey)
     {
-    	if (false === $personalKey) {
-    		throw new Exception("A personal key is required for encryption/decryption", 1);
-    	}
+        if ($personalKey === '') {
+            throw new Exception('A personal key is required for encryption/decryption', 1);
+        }
 
         $this->encryptionKey = hash('sha256', $personalKey, true);
-	    $size = mcrypt_get_iv_size(MCRYPT_CAST_256, MCRYPT_MODE_CFB);
-	    $this->initVector = mcrypt_create_iv($size, MCRYPT_DEV_RANDOM);
     }
 
     /**
      * Encrypt a string
-     * @param  mixed $input  Data to encrypt
-     * @return string        Encrypted data
+     *
+     * @param string $input Data to encrypt
+     * @return string Base64 encoded IV and ciphertext
      */
-    public function encrypt($input)
+    public function encrypt(string $input): string
     {
-        return base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $this->encryptionKey, $input, MCRYPT_MODE_ECB, $this->initVector));
+        $ivLength = openssl_cipher_iv_length('AES-256-CBC');
+        $iv = openssl_random_pseudo_bytes($ivLength);
+        $cipher = openssl_encrypt($input, 'AES-256-CBC', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
+
+        if ($cipher === false) {
+            throw new Exception('Encryption failed');
+        }
+
+        return base64_encode($iv . $cipher);
     }
 
     /**
      * Decrypt string
-     * @param  string $input Encrypted string we are going to decrypt
-     * @return string        Decrypted output
+     *
+     * @param string $input Base64 encoded IV and ciphertext
+     * @return string Decrypted output
      */
-    public function decrypt($input)
+    public function decrypt(string $input): string
     {
-        return trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $this->encryptionKey, base64_decode($input), MCRYPT_MODE_ECB, $this->initVector));
+        $raw = base64_decode($input, true);
+        if ($raw === false) {
+            throw new Exception('Input is not valid base64');
+        }
+
+        $ivLength = openssl_cipher_iv_length('AES-256-CBC');
+        $iv = substr($raw, 0, $ivLength);
+        $ciphertext = substr($raw, $ivLength);
+
+        $plain = openssl_decrypt($ciphertext, 'AES-256-CBC', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
+
+        if ($plain === false) {
+            throw new Exception('Decryption failed');
+        }
+
+        return $plain;
     }
 }
+
