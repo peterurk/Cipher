@@ -15,7 +15,7 @@ class Cipher
      *
      * @var string
      */
-    private $encryptionKey;
+    private $encryptedKey;
 
     /**
      * Initial vector
