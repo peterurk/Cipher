@@ -10,11 +10,12 @@ namespace peterurk\Cipher;
 class Cipher
 {
 
-	/**
-	 * SHA256 Encrypted Key
-	 * @var string
-	 */
-    private $encryptedKey;
+    /**
+     * Holds the hashed encryption key.
+     *
+     * @var string
+     */
+    private $encryptionKey;
 
     /**
      * Initial vector
