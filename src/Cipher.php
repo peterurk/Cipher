@@ -3,18 +3,20 @@ declare(strict_types=1);
 
 namespace peterurk\Cipher;
 
+use InvalidArgumentException;
+use RuntimeException;
+
 /**
  * Cipher Class
  *
  * @author Peter Post <peterurk@gmail.com>
  */
-class Cipher
+final class Cipher
 {
 
-	/**
-	 * SHA256 Encrypted Key
-	 * @var string
-	 */
+    /**
+     * SHA256 Encrypted key
+     */
     private string $encryptionKey;
 
     /**
@@ -22,12 +24,12 @@ class Cipher
      *
      * @param string $personalKey Holds the personal key to use in encryption
      *
-     * @throws Exception When the provided key is empty
+     * @throws InvalidArgumentException When the provided key is empty
      */
     public function __construct(string $personalKey)
     {
         if ($personalKey === '') {
-            throw new Exception('A personal key is required for encryption/decryption', 1);
+            throw new InvalidArgumentException('A personal key is required for encryption/decryption');
         }
 
         $this->encryptionKey = hash('sha256', $personalKey, true);
@@ -46,7 +48,7 @@ class Cipher
         $cipher = openssl_encrypt($input, 'AES-256-CBC', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
 
         if ($cipher === false) {
-            throw new Exception('Encryption failed');
+            throw new RuntimeException('Encryption failed');
         }
 
         return base64_encode($iv . $cipher);
@@ -62,7 +64,7 @@ class Cipher
     {
         $raw = base64_decode($input, true);
         if ($raw === false) {
-            throw new Exception('Input is not valid base64');
+            throw new InvalidArgumentException('Input is not valid base64');
         }
 
         $ivLength = openssl_cipher_iv_length('AES-256-CBC');
@@ -72,7 +74,7 @@ class Cipher
         $plain = openssl_decrypt($ciphertext, 'AES-256-CBC', $this->encryptionKey, OPENSSL_RAW_DATA, $iv);
 
         if ($plain === false) {
-            throw new Exception('Decryption failed');
+            throw new RuntimeException('Decryption failed');
         }
 
         return $plain;
