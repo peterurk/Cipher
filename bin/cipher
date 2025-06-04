@@ -1,12 +1,34 @@
 #!/usr/bin/env php
 <?php
-require __DIR__.'/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 use peterurk\Cipher\Cipher;
 
-$options = getopt('', ['encrypt::', 'decrypt::', 'key::', 'method::', 'hmac']);
-$key = $options['key'] ?? getenv('CIPHER_KEY');
-$method = $options['method'] ?? 'AES-256-CBC';
+$options = getopt('e::d::k::m::hf::F::', [
+    'encrypt::',
+    'decrypt::',
+    'key::',
+    'method::',
+    'hmac',
+    'help',
+    'encrypt-file::',
+    'decrypt-file::',
+]);
+
+if (isset($options['h']) || isset($options['help'])) {
+    fwrite(STDOUT, "Usage: cipher [options]\n\n" .
+        "  -e, --encrypt [text]       Encrypt text or read from STDIN\n" .
+        "  -d, --decrypt [text]       Decrypt text or read from STDIN\n" .
+        "  -k, --key <key>            Encryption key or CIPHER_KEY env\n" .
+        "  -m, --method <method>      Cipher method (default AES-256-CBC)\n" .
+        "      --encrypt-file <path>  Encrypt file and write to STDOUT\n" .
+        "      --decrypt-file <path>  Decrypt file and write to STDOUT\n" .
+        "      --hmac                 Use HMAC with CBC mode\n");
+    exit(0);
+}
+
+$key = $options['k'] ?? $options['key'] ?? getenv('CIPHER_KEY');
+$method = $options['m'] ?? $options['method'] ?? Cipher::DEFAULT_METHOD;
 $useHmac = isset($options['hmac']);
 
 if ($key === false || $key === '') {
@@ -16,18 +38,30 @@ if ($key === false || $key === '') {
 
 $cipher = new Cipher($key, $method, $useHmac);
 
-if (isset($options['encrypt'])) {
-    $input = $options['encrypt'] !== false ? $options['encrypt'] : stream_get_contents(STDIN);
+if (isset($options['encrypt-file'])) {
+    $cipher->encryptFile($options['encrypt-file'], 'php://stdout');
+    exit(0);
+}
+
+if (isset($options['decrypt-file'])) {
+    $cipher->decryptFile($options['decrypt-file'], 'php://stdout');
+    exit(0);
+}
+
+if (isset($options['e']) || isset($options['encrypt'])) {
+    $input = $options['e'] ?? $options['encrypt'];
+    $input = $input !== false ? $input : stream_get_contents(STDIN);
     echo $cipher->encrypt($input) . PHP_EOL;
     exit(0);
 }
 
-if (isset($options['decrypt'])) {
-    $input = $options['decrypt'] !== false ? $options['decrypt'] : stream_get_contents(STDIN);
+if (isset($options['d']) || isset($options['decrypt'])) {
+    $input = $options['d'] ?? $options['decrypt'];
+    $input = $input !== false ? $input : stream_get_contents(STDIN);
     echo $cipher->decrypt($input) . PHP_EOL;
     exit(0);
 }
 
-fwrite(STDERR, "Usage: cipher --encrypt <text>|--decrypt <text> [--key <key>] [--method <method>] [--hmac]\n");
+fwrite(STDERR, "Missing arguments. Use --help for usage information.\n");
 exit(1);
 
