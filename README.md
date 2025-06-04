@@ -2,7 +2,8 @@
 
 This is a class I wrote to encrypt and decrypt everything you can possibly
 imagine. In the tests folder you will find an encryption and a decryption
-example.
+example. Examples rely on Composer's autoloader. After cloning the repository
+run `composer dump-autoload` so the generated autoload files are available.
 
 ## Contributing guidelines
 

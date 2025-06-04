@@ -2,7 +2,9 @@
 /**
  * Encryption test
  */
-require 'Cipher.php';
+require __DIR__ . '/../vendor/autoload.php';
+
+use peterurk\Cipher\Cipher;
 
 // First init the class by calling the constructor
 // Pass your personal key to the constructor as a
