@@ -1,6 +1,6 @@
 # Cipher PHP Class
 
-This is a class I wrote to encrypt and decrypt everything you can possibly imagine. In the tests folder you will find an encryption and a decryption example.
+This is a class I wrote to encrypt and decrypt everything you can possibly imagine. In the tests folder you will find an encryption and a decryption example. Examples rely on Composer's autoloader. After cloning the repository run `composer dump-autoload` so the generated autoload files are available.
 
 ## Installation
 
@@ -24,7 +24,7 @@ $encrypted = $cipher->encrypt('Hello world!');
 $decrypted = $cipher->decrypt($encrypted);
 ```
 
-The library uses `mcrypt` under the hood so make sure the extension is available.
+The library uses the OpenSSL extension so make sure it is available.
 
 ## Contributing guidelines
 
