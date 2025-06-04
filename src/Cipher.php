@@ -10,11 +10,12 @@ namespace peterurk\Cipher;
 class Cipher
 {
 
-	/**
-	 * SHA256 Encrypted Key
-	 * @var string
-	 */
-    private $encryptedKey;
+    /**
+     * SHA256 encrypted key derived from the personal key
+     *
+     * @var string
+     */
+    private $encryptionKey;
 
     /**
      * Initial vector
@@ -31,13 +32,16 @@ class Cipher
      */
     public function __construct($personalKey = false)
     {
-    	if (false === $personalKey) {
-    		throw new Exception("A personal key is required for encryption/decryption", 1);
-    	}
+        if (false === $personalKey) {
+            throw new \Exception(
+                'A personal key is required for encryption/decryption',
+                1
+            );
+        }
 
         $this->encryptionKey = hash('sha256', $personalKey, true);
-	    $size = mcrypt_get_iv_size(MCRYPT_CAST_256, MCRYPT_MODE_CFB);
-	    $this->initVector = mcrypt_create_iv($size, MCRYPT_DEV_RANDOM);
+        $size = mcrypt_get_iv_size(MCRYPT_CAST_256, MCRYPT_MODE_CFB);
+        $this->initVector = mcrypt_create_iv($size, MCRYPT_DEV_RANDOM);
     }
 
     /**
